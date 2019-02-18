@@ -4,7 +4,6 @@ mod tests {
     use std::fs::File;
     use std::io::prelude::*;
     use std::io::BufReader;
-    use std::fs::OpenOptions;
 
     #[test]
     fn test_cfile() -> std::io::Result<()> {
@@ -19,14 +18,36 @@ mod tests {
     #[test]
     fn test_read_line() -> std::io::Result<()> {
         init_log();
+        info!("here 1.");
         let fr = get_fixture_file(["gbkuni30.txt"], true);
 
+        info!("here 2.");
         assert!(fr.is_ok());
 
-        let reader = BufReader::new(OpenOptions::new().open(fr.unwrap())?);
+        let fr = fr.unwrap();
+        debug!("{:?}", fr);
 
+        // let f = OpenOptions::new().read(true).open(fr)?;
+        let f = File::open(fr)?; // open read only 
+        debug!("{:?}", f);
+        let reader = BufReader::new(f);
+
+        info!("here 3.");
         reader.lines().for_each(|line| {
-            assert_eq!(line.unwrap().len(), 4);
+            match line {
+                Ok(content) => {
+                    // info!("{},{}", content, content.len());
+                    let mut pair = content.split(':');
+                    if let (Some(u), Some(g)) = (pair.next(), pair.next()) {
+                        info!("{} = {}", u, g);
+                    } else {
+                        assert!(false);
+                    }
+                },
+                Err(_) => {
+                    assert!(false)
+                }
+            }
         });
 
         Ok(())

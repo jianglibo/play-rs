@@ -93,7 +93,7 @@ mod tests {
         assert_eq!(s, "台湾");
 
         let u = "0x00dD".parse::<usize>();
-        assert_eq!(u.unwrap(), 55);
+        assert!(u.is_err());
         // let c = char::try_from(90u32);
     }
 
@@ -136,9 +136,20 @@ mod tests {
 
     #[test]
     fn test_gb18030_to_cp() {
+        init_log();
         let uc = 0x20000u32;
         assert_eq!(code_point_to_gb18030(uc), [0x95, 0x32, 0x82, 0x36]);
-
         assert_eq!(gb18030_to_code_point([0x95u8, 0x32u8, 0x82u8, 0x36u8]), Some(0x20000));
+
+        let c = std::char::from_u32(3056).unwrap();
+        let mut buf = [0;4];
+        debug!("{}", '台'.encode_utf8(&mut buf));
+        debug!("{:?}", buf);
+        debug!("{}", c);
+        // gb18030 我 CE D2
+        // 6211:CED2
+        assert_eq!(std::char::from_u32(0x6211), Some('我'));
+        let c: u32 = gb18030_to_code_point([0xCE, 0xD2]).unwrap();
+        assert_eq!(std::char::from_u32(c), Some('我'));
     }
 }

@@ -118,7 +118,7 @@ mod tests {
     fn test_scan() {
         init_log();
 
-        let s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xce\xc4\xbc\xfe\xa1\xb0";
+        let _s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xce\xc4\xbc\xfe\xa1\xb0";
         let s = r"\xce\xde";
         let v_slice = s.as_bytes();
         let u8_pair = get_pair(v_slice);
