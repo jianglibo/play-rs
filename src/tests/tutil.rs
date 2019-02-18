@@ -6,12 +6,10 @@ pub fn init_log() {
     env_logger::init();
 }
 
-fn get_final_file(pn: &str, postfix: &[&str], canonicalize: bool) -> std::io::Result<PathBuf> {
+fn get_final_file<'a, T: AsRef<[&'a str]>>(pn: &str, postfix: T, canonicalize: bool) -> std::io::Result<PathBuf> {
     let mut path_result = env::current_dir()?;
-    // postfix.insert(0, "abc");
-    // path_result = path_result.join(pn);
     let mut v = vec![pn];
-    v.extend_from_slice(postfix);
+    v.extend_from_slice(postfix.as_ref());
     path_result = v.iter().fold(path_result, |state, x| {
         info!("{}", x);
         state.join(x)
@@ -24,10 +22,10 @@ fn get_final_file(pn: &str, postfix: &[&str], canonicalize: bool) -> std::io::Re
 }
 
 #[allow(dead_code)]
-pub fn get_fixture_file(postfix: &[&str], canonicalize: bool) -> std::io::Result<PathBuf> {
+pub fn get_fixture_file<'a, T: AsRef<[&'a str]>>(postfix: T, canonicalize: bool) -> std::io::Result<PathBuf> {
     get_final_file("fixtures", postfix, canonicalize)
 }
 
-pub fn get_out_file(postfix: &[&str]) -> std::io::Result<PathBuf> {
+pub fn get_out_file<'a, T: AsRef<[&'a str]>>(postfix: T) -> std::io::Result<PathBuf> {
     get_final_file("notingit", postfix, false)
 }
