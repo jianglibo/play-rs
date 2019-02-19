@@ -1,9 +1,80 @@
+use std::path::Path;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
+
+#[derive(Debug)]
+enum FindSeccessionError {
+    IO_ERROR(std::io::Error), //std::io::Error
+}
+
+impl std::convert::From<std::io::Error> for FindSeccessionError {
+    fn from(err: std::io::Error) -> Self {
+        FindSeccessionError::IO_ERROR(err)
+    }
+}
+
+#[derive(Debug)]
+pub enum SuccessionMatchError {
+    Continue,
+    Impossible,
+}
+
+type SuccessionMatchResult = Result<u32, SuccessionMatchError>;
+
+
+// find succession parts.
+fn find_successions<T: AsRef<Path>>(fp: T) -> Result<Vec<u32>, FindSeccessionError> {
+
+    let reader = BufReader::new(File::open(fp.as_ref())?);
+
+    let v: Vec<u32> = reader.lines().filter_map(|line| {
+        match line {
+            Ok(content) => {
+                let mut pair = content.split(':');
+                if let (Some(u), Some(g)) = (pair.next(), pair.next()) {
+                    if let (Ok(_), Ok(i2)) = (u32::from_str_radix(u, 16), u32::from_str_radix(u, 16)) {
+                        Some(i2)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            },
+            Err(_) => {
+                None
+            }
+        }
+    }).scan((None, 0u32), |state: &mut (Option<u32>, u32), itm| {
+        match state {
+            (Some(i), _) => {
+                if itm == *i + 1 {
+                    state.1 += 1;
+                    Some(Err(SuccessionMatchError::Continue))
+                } else {
+                    println!("with length: {}", state.1);
+                    let c = state.1;
+                    state.1 = 1;
+                    Some(Ok(c))
+                }
+            },
+            _ => {
+                state.0 = Some(itm);
+                state.1 = 1;
+                Some(Err(SuccessionMatchError::Continue))
+            }
+        }
+    }).filter(Result::is_ok).flat_map(|x|x).collect();
+    Ok(v)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::tests::tutil::{init_log, get_out_file, get_fixture_file};
     use std::fs::File;
     use std::io::prelude::*;
-    use std::io::BufReader;
+    use super::*;
 
     #[test]
     fn test_cfile() -> std::io::Result<()> {
@@ -26,30 +97,10 @@ mod tests {
 
         let fr = fr.unwrap();
         debug!("{:?}", fr);
-
         // let f = OpenOptions::new().read(true).open(fr)?;
-        let f = File::open(fr)?; // open read only 
-        debug!("{:?}", f);
-        let reader = BufReader::new(f);
 
-        info!("here 3.");
-        reader.lines().for_each(|line| {
-            match line {
-                Ok(content) => {
-                    // info!("{},{}", content, content.len());
-                    let mut pair = content.split(':');
-                    if let (Some(u), Some(g)) = (pair.next(), pair.next()) {
-                        info!("{} = {}", u, g);
-                    } else {
-                        assert!(false);
-                    }
-                },
-                Err(_) => {
-                    assert!(false)
-                }
-            }
-        });
-
+        let r = find_successions(fr);
+        println!("{:?}", r);
         Ok(())
     }
 }
