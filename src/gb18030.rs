@@ -42,3 +42,18 @@ pub fn gb18030_4b_to_code_point<T: AsRef<[u8]>>(gb4: T) -> Option<u32> {
         _ => None
     }
 }
+
+pub fn gb18030_2b_to_code_point<T: AsRef<[u8]>>(gb2: T) -> Option<u32> {
+    let gb2_1 = gb2.as_ref();
+    match gb2_1.len() {
+        2 => {
+            let (b1, b2, b3, b4) = (gb4_1[0],gb4_1[1],gb4_1[2],gb4_1[3]);
+            Some(0x10000
+                + ((b1-0x90) as u32) * 12600
+                + ((b2-0x30) as u32) * 1260
+                + ((b3-0x81) as u32) * 10
+                + ((b4-0x30) as u32)
+            )},
+        _ => None
+    }
+}

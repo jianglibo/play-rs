@@ -29,3 +29,7 @@ pub fn get_fixture_file<'a, T: AsRef<[&'a str]>>(postfix: T, canonicalize: bool)
 pub fn get_out_file<'a, T: AsRef<[&'a str]>>(postfix: T) -> std::io::Result<PathBuf> {
     get_final_file("notingit", postfix, false)
 }
+
+pub fn get_src_file<'a, T: AsRef<[&'a str]>>(postfix: T) -> std::io::Result<PathBuf> {
+    get_final_file("src", postfix, false)
+}
