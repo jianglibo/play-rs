@@ -80,7 +80,7 @@ pub fn codepoint_to_utf8(cp: u32) -> Option<Vec<u8>> {
             Some(vec![u1, u2, u3])
         }
         // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        0x00010000...0x001FFFFF => {
+        0x00010000...0x010FFFF => {
             let u4 = get_bits(cp, BitNum::SIX);
             let u3 = get_bits(cp >> 6, BitNum::SIX);
             let u2 = get_bits(cp >> 12, BitNum::SIX);

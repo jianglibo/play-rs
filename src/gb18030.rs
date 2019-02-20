@@ -113,3 +113,40 @@ pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult 
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::tutil::{init_log, get_out_file};
+    use std::fs::{OpenOptions};
+    use std::io::Write;
+    use std::time::Instant;
+
+    #[test]
+    fn t_str() {
+        init_log();
+        let s = "光与影"; // E5 85 89 E4 B8 8E E5 BD B1 
+        assert_eq!(s.len(), 9);
+        assert_eq!(s.chars().count(), 3);
+        let mut f = OpenOptions::new().write(true).create(true).open(get_out_file(["t_zh.txt"]).unwrap()).unwrap();
+        write!(f, "{}", s).unwrap();
+
+        let s = "光と闇"; // E5 85 89 E3 81 A8 E9 97 87 
+        let mut f = OpenOptions::new().write(true).create(true).open(get_out_file(["t_jp.txt"]).unwrap()).unwrap();
+        write!(f, "{}", s).unwrap();
+
+        let bs = s.as_bytes();
+        assert_eq!((bs[0], bs[1], bs[2]), (0xE5, 0x85, 0x89));
+
+        let now = Instant::now();
+        for _ in 0..100000 {
+            s.as_bytes();
+        }
+        let elapsed = now.elapsed();
+        info!("{:?}", elapsed);
+
+        let c = 'a';
+        assert_eq!(4, std::mem::size_of_val(&c));
+
+    }
+}
