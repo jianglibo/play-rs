@@ -155,17 +155,8 @@ mod tests {
 
     #[test]
     fn test_write() {
-        let prefix = r###"lazy_static! {
-    static ref GBK_UNI: [u32;0xFEFE] = {
-        let mut all = [0u32;0xFEFE];
-
-        "###;
-
-        let postfix = r###"
-                all
-    };
-}
-        "###;
+        let prefix = "pub const GBK_UNI: [u32;23940] = [\n";
+        let postfix = "];";
 
         let fr = get_fixture_file(["gbkuni.txt"], true);
         let reader = BufReader::new(File::open(fr.unwrap()).unwrap());
@@ -177,31 +168,53 @@ mod tests {
         let mut writer = LineWriter::new(wf);
 
         writer.write_all(prefix.as_bytes()).unwrap();
-
         reader
         .lines()
-        .filter_map(|line| match line {
-            Ok(content) => {
-                let mut pair = content.split(':');
-                if let (Some(u), Some(g)) = (pair.next(), pair.next()) {
-                    if let (Ok(i1), Ok(i2)) =
-                        (u32::from_str_radix(u, 16), u32::from_str_radix(g, 16))
-                    {
-                        Some((i1, i2))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+        .for_each(|line| {
+            let line_value = line.unwrap();
+            let mut pair = line_value.split(':');
+                if let (Some(g), Some(u)) = (pair.next(), pair.next()) {
+                    write!(writer, "0x{},\n", u).unwrap();
                 }
-            },
-            Err(_) => None,
-        }).for_each(|pp| {
-            write!(writer, "all[{}]={};\n", pp.0, pp.1).unwrap();
         });
+        // .filter_map(|pp|pp).for_each(|pp| {
+        //     write!(writer, "all[{}]={};\n", pp.0, pp.1).unwrap();
+        // });
+
+        // reader
+        // .lines()
+        // .map(|line| {
+        //     let line_value = line.unwrap();
+        //     let mut pair = line_value.split(':');
+        //         if let (Some(u), Some(g)) = (pair.next(), pair.next()) {
+        //             if let (Ok(i1), Ok(i2)) =
+        //                 (u32::from_str_radix(u, 16), u32::from_str_radix(g, 16))
+        //             {
+        //                 Some((i1, i2))
+        //             } else {
+        //                 None
+        //             }
+        //         } else {
+        //             None
+        //         }
+        // }).filter_map(|pp|pp).for_each(|pp| {
+        //     write!(writer, "all[{}]={};\n", pp.0, pp.1).unwrap();
+        // });
 
         writer.write_all(postfix.as_bytes()).unwrap();
+
     }
+
+    #[test]
+    fn test_str() {
+        let s = "817E";
+        assert!(s.ends_with("7E"));
+        assert_eq!(s.get(..2).unwrap(), "81");
+        // assert_eq!("81" + "7E", "817E");
+        assert_eq!(u32::from_str_radix("4E17", 16), Ok(19991));
+
+    }
+
 
     // lazy_static! {
     //     static ref GBK_UNI: [u32;0xFEFE] = {

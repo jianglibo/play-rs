@@ -7,14 +7,14 @@ mod tests {
     #[test]
     fn test_builtin() {
         let s = "C2CC";
-        let s1 = s.trim_left_matches("0x");
+        let s1 = s.trim_start_matches("0x");
         assert_eq!(s, s1);
         let i = u32::from_str_radix("C2CC", 16).unwrap();
         let i1 = hex_str_to_u32("C2CC").unwrap();
         assert_eq!(i, i1);
 
         let v = vec!(1,2,3);
-        let vs = v.as_slice();
+        let _vs = v.as_slice();
         // let (first, ...rest) = (1,2,3);
     }
     #[test]

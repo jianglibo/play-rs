@@ -1,5 +1,4 @@
 pub mod test_variable;
-pub mod test_iter;
 pub mod test_ownership;
 pub mod test_file;
 pub mod tutil;

@@ -121,16 +121,16 @@ pub fn hex_str_to_u32<T: AsRef<[u8]>>(hex_as: T) -> Option<u32> {
     }
 }
 
-pub type TripleOption = (Option<u8>, Option<u8>, Option<u8>);
+type TripleOptionU8 = (Option<u8>, Option<u8>, Option<u8>);
 
 #[derive(Debug)]
-pub enum MatchError {
+pub enum MayBeMatchError {
     Continue,
     Impossible,
     Discard(Vec<u8>),
 }
 
-type ScanResult = Result<u8, MatchError>;
+type ScanResult = Result<u8, MayBeMatchError>;
 
 const BSL: u8 = b'\\';
 const XC: u8 = b'x';
@@ -152,26 +152,27 @@ fn aton_2(a: u8, b: u8) -> Option<u8> {
     }
 }
 
-pub fn find_pair(state: &mut TripleOption, it: u8) -> ScanResult {
+// a function used in scan body. at the middle of iterator chains.
+pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
     match state {
         (None, None, None) => {
             match it {
                 BSL => {
                     state.0 = Some(BSL);
-                    Err(MatchError::Continue)
+                    Err(MayBeMatchError::Continue)
                 }
-                _ => Err(MatchError::Discard(vec![it])), // will only assing to tuple if meet \.
+                _ => Err(MayBeMatchError::Discard(vec![it])), // will only assing to tuple if meet \.
             }
         }
         (Some(_), None, None) => {
             match it {
                 XC => {
                     state.1 = Some(XC);
-                    Err(MatchError::Continue)
+                    Err(MayBeMatchError::Continue)
                 }
                 _ => {
                     *state = (None, None, None); // only if second is 'x'.
-                    Err(MatchError::Discard(vec![BSL, it]))
+                    Err(MayBeMatchError::Discard(vec![BSL, it]))
                 }
             }
         }
@@ -179,11 +180,11 @@ pub fn find_pair(state: &mut TripleOption, it: u8) -> ScanResult {
             match it {
                 b'0'...b'9' | b'a'...b'f' | b'A'...b'F' => {
                     state.2 = Some(it);
-                    Err(MatchError::Continue)
+                    Err(MayBeMatchError::Continue)
                 }
                 _ => {
                     *state = (None, None, None); // only if third character is valid.
-                    Err(MatchError::Discard(vec![BSL, XC, it]))
+                    Err(MayBeMatchError::Discard(vec![BSL, XC, it]))
                 }
             }
         }
@@ -199,7 +200,7 @@ pub fn find_pair(state: &mut TripleOption, it: u8) -> ScanResult {
             }
             _ => {
                 // it value is leaked. cx -> it = g? discard all.
-                let er = Err(MatchError::Discard(vec![BSL, XC, state.2.unwrap(), it]));
+                let er = Err(MayBeMatchError::Discard(vec![BSL, XC, state.2.unwrap(), it]));
                 *state = (None, None, None);
                 er
             }
@@ -207,7 +208,64 @@ pub fn find_pair(state: &mut TripleOption, it: u8) -> ScanResult {
         // we got 2 items, but first is leaked, for example it is 'ga', replace state with new pair.
         _ => {
             *state = (Some(it), None, None);
-            Err(MatchError::Impossible)
+            Err(MayBeMatchError::Impossible)
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::tutil::init_log;
+
+    pub fn get_pair(a_slice: &[u8]) -> Vec<u8> {
+        info!("-------------------**---------------------------");
+        a_slice
+            .iter()
+            .scan((None, None, None), |state: &mut TripleOptionU8, it| {
+                Some(find_2_hex_pair(state, *it))
+            })
+            .inspect(|x| match x {
+                Ok(_) => (),
+                Err(er) => info!("{:?}", er),
+            })
+            .filter(Result::is_ok)
+            .map(|x| {
+                // we can unwrap here, because all errors had filter outed.
+                x.unwrap()
+            })
+            .collect()
+    }
+
+    // scan stop on None.
+    #[test]
+    fn test_scan() {
+        init_log();
+
+        let _s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xce\xc4\xbc\xfe\xa1\xb0";
+        let s = r"\xce\xde";
+        let v_slice = s.as_bytes();
+        let u8_pair = get_pair(v_slice);
+
+        assert_eq!(u8_pair.len(), 2);
+
+        assert_eq!(u8_pair[0], 206);
+
+        assert_eq!(u8_pair[1], 222);
+        // assert_eq!(u8_pair[0], Ok((92, 101)));
+
+        let s = r"ce\xce\xde";
+        let v_slice = s.as_bytes();
+        assert_eq!(get_pair(v_slice).len(), 2);
+
+        let s = r"ce\xce\xde1234";
+        let v_slice = s.as_bytes();
+        assert_eq!(get_pair(v_slice).len(), 2);
+
+        // this will happen.
+        let s = r"cxe\xce\xde";
+        let v_slice = s.as_bytes();
+        assert_eq!(get_pair(v_slice).len(), 2);
     }
 }
