@@ -130,7 +130,7 @@ pub enum MayBeMatchError {
     Discard(Vec<u8>),
 }
 
-type ScanResult = Result<u8, MayBeMatchError>;
+type ScanResult = Result<Vec<u8>, MayBeMatchError>;
 
 const BSL: u8 = b'\\';
 const XC: u8 = b'x';
@@ -161,8 +161,9 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
                 BSL => {
                     state.0 = Some(BSL);
                     Err(MayBeMatchError::Continue)
-                }
-                _ => Err(MayBeMatchError::Discard(vec![it])), // will only assing to tuple if meet \.
+                },
+                // _ => Err(MayBeMatchError::Discard(vec![it])), // will only assing to tuple if meet \.
+                _ => Ok(vec!(it)), // it's an ascii code.
             }
         }
         (Some(_), None, None) => {
@@ -170,11 +171,11 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
                 XC => {
                     state.1 = Some(XC);
                     Err(MayBeMatchError::Continue)
-                }
+                },
                 _ => {
                     *state = (None, None, None); // only if second is 'x'.
-                    Err(MayBeMatchError::Discard(vec![BSL, it]))
-                }
+                    Ok(vec!(BSL, it))
+                },
             }
         }
         (Some(_), Some(_), None) => {
@@ -182,11 +183,11 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
                 b'0'...b'9' | b'a'...b'f' | b'A'...b'F' => {
                     state.2 = Some(it);
                     Err(MayBeMatchError::Continue)
-                }
+                },
                 _ => {
                     *state = (None, None, None); // only if third character is valid.
-                    Err(MayBeMatchError::Discard(vec![BSL, XC, it]))
-                }
+                    Ok(vec!(BSL, XC, it))
+                },
             }
         }
         // last character may be invalid.
@@ -197,14 +198,12 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
                 let tp = aton_2(state.2.unwrap(), it);
                 *state = (None, None, None);
                 info!("{:?}", tp);
-                Ok(tp.unwrap())
-            }
+                Ok(vec!(tp.unwrap()))
+            },
             _ => {
-                // it value is leaked. cx -> it = g? discard all.
-                let er = Err(MayBeMatchError::Discard(vec![BSL, XC, state.2.unwrap(), it]));
                 *state = (None, None, None);
-                er
-            }
+                Ok(vec![BSL, XC, state.2.unwrap(), it])
+            },
         },
         // we got 2 items, but first is leaked, for example it is 'ga', replace state with new pair.
         _ => {
@@ -230,6 +229,7 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
                 // we can unwrap here, because all errors had filter outed.
                 x.unwrap()
             })
+            .flat_map(|x|x)
             .collect()
     }
 
@@ -258,15 +258,15 @@ mod tests {
 
         let s = r"ce\xce\xde";
         let v_slice = s.as_bytes();
-        assert_eq!(get_hex_pairs(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 4);
 
         let s = r"ce\xce\xde1234";
         let v_slice = s.as_bytes();
-        assert_eq!(get_hex_pairs(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 8);
 
         // this will happen.
         let s = r"cxe\xce\xde";
         let v_slice = s.as_bytes();
-        assert_eq!(get_hex_pairs(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 5);
     }
 }

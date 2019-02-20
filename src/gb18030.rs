@@ -178,7 +178,8 @@ mod tests {
         info!("{:?}", cs);
 
         let mut trio = (None, None, None);
-        let s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xca\xe4\xc8\xeb\xce\xc4\xbc\xfe\xa1\xb0";
+        // let s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xca\xe4\xc8\xeb\xce\xc4\xbc\xfe\xa1\xb0";
+        let s = r"note: Non-UTF-8 output: LINK : fatal error LNK1181: \xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xca\xe4\xc8\xeb\xce\xc4\xbc\xfe\xa1\xb0sqlite3.lib\xa1\xb1\r\n";
         let v8 = get_hex_pairs(s.as_bytes());
 
         let cs: Vec<char> = v8.iter()
@@ -187,7 +188,9 @@ mod tests {
             .flat_map(|c|c)
             .collect();
 
-        info!("{:?}", cs);
+        let s: String = cs.into_iter().collect();
+
+        info!("{}", s);
     }
 
     #[test]
