@@ -77,7 +77,6 @@ type CharResult = Result<char, MayBeMatchError>;
 // https://blog.rust-lang.org/2015/04/17/Enums-match-mutation-and-moves.html
 // for scan use.
 pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult {
-
     match *state { // we didn't move or copy it.
         (None, None, None) => match current_byte {
             0x00...0x7F => Ok(char::from_u32(current_byte as u32).unwrap()), // state keep empty.
@@ -87,26 +86,52 @@ pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult 
                 Err(MayBeMatchError::Continue)
             }
         },
-        (Some(b1), None, None) => match b1 {
+        (Some(b1), None, None) => match b1 { // exam the first byte.
             0x81...0xFE => match current_byte {
-                0x40...0x7E | 0x80...0xFE => {
-                    let index: u32 = ((b1 - 0x81) as u32) * 191 + ((current_byte - 0x40) as u32);
+                0x40...0x7E | 0x80...0xFE => { // a valid gb18030
+                    let mut low_boundary = 0x40;
+                    if b1 > 0x7E {
+                        low_boundary = 0x41;
+                    }
+                    let index: u32 = ((b1 - 0x81) as u32) * 191 + ((current_byte - low_boundary) as u32);
                     let cp = GBK_UNI[index as usize];
+                    debug!("got index: {}, codepoint: 0x{:X}", index, cp);
                     state.0 = None;
                     Ok(char::from_u32(cp).unwrap())
                 },
-                0x30...0x39 => {
+                0x30...0x39 => { // maybe a four byte gb18030
                     state.1 = Some(current_byte);
                     Err(MayBeMatchError::Continue)
                 },
-                _ => {
-                    *state = (None, None, None);
+                _ => { // the current byte is not valid. discard it.
+                    state.0 = None;
                     Err(MayBeMatchError::Discard(vec![b1]))
                 }
             },
-            _ => {
+            _ => { // the first byte is invalid. discard it.
                 state.0 = None;
                 Err(MayBeMatchError::Discard(vec![b1]))
+            }
+        },
+        (Some(b1), Some(b2), None) => match current_byte { // b2 is always valid.
+            0x81...0xFE => {
+                state.2 = Some(current_byte);
+                Err(MayBeMatchError::Continue)
+            },
+            _ => {
+                *state = (None, None, None);
+                Err(MayBeMatchError::Discard(vec![b1, b2, current_byte]))
+            }
+        },
+        (Some(b1), Some(b2), Some(b3)) => match current_byte {
+            0x30...0x39 => {
+                *state = (None, None, None);
+                let cp = gb18030_4b_to_code_point([b1, b2, b3, current_byte]).unwrap();
+                Ok(char::from_u32(cp).unwrap())
+            },
+            _ => {
+                *state = (None, None, None);
+                Err(MayBeMatchError::Discard(vec![b1, b2, b3, current_byte]))
             }
         },
         _ => Err(MayBeMatchError::Continue)
@@ -117,10 +142,28 @@ pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::tutil::{init_log, get_out_file};
-    use std::fs::{OpenOptions};
-    use std::io::Write;
+    use crate::tests::tutil::{init_log, get_out_file, get_fixture_file};
+    use std::fs::{OpenOptions, File};
+    use std::io::{Write, Read};
     use std::time::Instant;
+
+    #[test]
+    fn test_decode_gb() {
+        init_log();
+        // CE D2 0D 0A B5 C4 B1 E0 C2 EB CA C7 47 42 32 33 31 32 A1 A3
+        let path = get_fixture_file(["gb18030.txt"], true).unwrap();
+        let f = File::open(path).unwrap();
+        // let bs: &[u8] = &[0xCE, 0xD2, 0x0D, 0x0A, 0xB5, 0xC4, 0xB1, 0xE0, 0xC2, 0xEB, 0xCA, 0xC7, 0x47, 0x42, 0x32, 0x33, 0x31, 0x32, 0xA1, 0xA3];
+        let mut trio = (None, None, None);
+        let cs: Vec<char> = f.bytes()
+            .map(|ob|ob.unwrap())
+            .map(|b|try_get_char(&mut trio, b))
+            .filter(Result::is_ok)
+            .flat_map(|c|c)
+            .collect();
+
+        info!("{:?}", cs);
+    }
 
     #[test]
     fn t_str() {

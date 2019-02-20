@@ -1,4 +1,4 @@
-pub const GBK_UNI: [u32;23940] = [
+pub const GBK_UNI: &[u32] = &[
 0x4E02,
 0x4E04,
 0x4E05,

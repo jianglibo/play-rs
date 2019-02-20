@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn test_write() {
-        let prefix = "pub const GBK_UNI: [u32;23940] = [\n";
+        let prefix = "pub const GBK_UNI: &[u32] = &[\n";
         let postfix = "];";
 
         let fr = get_fixture_file(["gbkuni.txt"], true);
