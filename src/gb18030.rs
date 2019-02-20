@@ -1,5 +1,6 @@
 use std::char;
 use crate::table::GBK_UNI;
+use crate::code_util::get_hex_pairs;
 // 从Unicode编码到GB18030编码的映射方法如下：
 // U=Unicode编码-0x10000
 // m1=U/12600
@@ -93,7 +94,7 @@ pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult 
                     if b1 > 0x7E {
                         low_boundary = 0x41;
                     }
-                    let index: u32 = ((b1 - 0x81) as u32) * 191 + ((current_byte - low_boundary) as u32);
+                    let index: u32 = ((b1 - 0x81) as u32) * 190 + ((current_byte - low_boundary) as u32);
                     let cp = GBK_UNI[index as usize];
                     debug!("got index: {}, codepoint: 0x{:X}", index, cp);
                     state.0 = None;
@@ -150,7 +151,19 @@ mod tests {
     #[test]
     fn test_decode_gb() {
         init_log();
+        // CED2:6211 , index 14776.
+        // let index: u32 = ((b1 - 0x81) as u32) * 191 + ((current_byte - low_boundary) as u32);
+        // 总共126个区。每个区的长度 0xFE-0x40 190,不是191，中间没有7F。
+        let index = ((0xCE - 0x81) as u32) * 190 + ((0xD2 - 0x41) as u32);
+        assert_eq!(index, 14775);
+
+        // 816A:4E6F, index: 43
+        let index = ((0x81 - 0x81) as u32) * 190 + ((0x6A - 0x40) as u32);
+        assert_eq!(index, 42);
+
+
         // CE D2 0D 0A B5 C4 B1 E0 C2 EB CA C7 47 42 32 33 31 32 A1 A3
+        debug!("我：{}", '我'.escape_unicode());
         let path = get_fixture_file(["gb18030.txt"], true).unwrap();
         let f = File::open(path).unwrap();
         // let bs: &[u8] = &[0xCE, 0xD2, 0x0D, 0x0A, 0xB5, 0xC4, 0xB1, 0xE0, 0xC2, 0xEB, 0xCA, 0xC7, 0x47, 0x42, 0x32, 0x33, 0x31, 0x32, 0xA1, 0xA3];
@@ -158,6 +171,18 @@ mod tests {
         let cs: Vec<char> = f.bytes()
             .map(|ob|ob.unwrap())
             .map(|b|try_get_char(&mut trio, b))
+            .filter(Result::is_ok)
+            .flat_map(|c|c)
+            .collect();
+
+        info!("{:?}", cs);
+
+        let mut trio = (None, None, None);
+        let s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xca\xe4\xc8\xeb\xce\xc4\xbc\xfe\xa1\xb0";
+        let v8 = get_hex_pairs(s.as_bytes());
+
+        let cs: Vec<char> = v8.iter()
+            .map(|b|try_get_char(&mut trio, *b))
             .filter(Result::is_ok)
             .flat_map(|c|c)
             .collect();

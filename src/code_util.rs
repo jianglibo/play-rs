@@ -153,6 +153,7 @@ fn aton_2(a: u8, b: u8) -> Option<u8> {
 }
 
 // a function used in scan body. at the middle of iterator chains.
+
 pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
     match state {
         (None, None, None) => {
@@ -213,13 +214,7 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
     }
 }
 
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::tests::tutil::init_log;
-
-    pub fn get_pair(a_slice: &[u8]) -> Vec<u8> {
+    pub fn get_hex_pairs(a_slice: &[u8]) -> Vec<u8> {
         info!("-------------------**---------------------------");
         a_slice
             .iter()
@@ -238,6 +233,12 @@ mod tests {
             .collect()
     }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::tutil::init_log;
+
     // scan stop on None.
     #[test]
     fn test_scan() {
@@ -246,7 +247,7 @@ mod tests {
         let _s = r"\xce\xde\xb7\xa8\xb4\xf2\xbf\xaa\xce\xc4\xbc\xfe\xa1\xb0";
         let s = r"\xce\xde";
         let v_slice = s.as_bytes();
-        let u8_pair = get_pair(v_slice);
+        let u8_pair = get_hex_pairs(v_slice);
 
         assert_eq!(u8_pair.len(), 2);
 
@@ -257,15 +258,15 @@ mod tests {
 
         let s = r"ce\xce\xde";
         let v_slice = s.as_bytes();
-        assert_eq!(get_pair(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 2);
 
         let s = r"ce\xce\xde1234";
         let v_slice = s.as_bytes();
-        assert_eq!(get_pair(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 2);
 
         // this will happen.
         let s = r"cxe\xce\xde";
         let v_slice = s.as_bytes();
-        assert_eq!(get_pair(v_slice).len(), 2);
+        assert_eq!(get_hex_pairs(v_slice).len(), 2);
     }
 }
