@@ -109,5 +109,15 @@ mod tests {
 
         let a = u8::from_str_radix("E5", 16).unwrap();
         assert_eq!(a, 229);
+
+        let a = u8::from_str_radix("A", 16).unwrap();
+        assert_eq!(a, 10);
+
+        let a = u32::from('爱');
+        let c = std::char::from_u32(a);
+        assert_eq!(c, Some('爱'));
+
+        let _a1 = u32::from('愛');
+        // assert_eq!(a, a1);
     }
 }

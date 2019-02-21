@@ -238,6 +238,7 @@ pub fn find_2_hex_pair(state: &mut TripleOptionU8, it: u8) -> ScanResult {
 mod tests {
     use super::*;
     use crate::tests::tutil::init_log;
+    use std::time::Instant;
 
     // scan stop on None.
     #[test]
@@ -268,5 +269,33 @@ mod tests {
         let s = r"cxe\xce\xde";
         let v_slice = s.as_bytes();
         assert_eq!(get_hex_pairs(v_slice).len(), 5);
+    }
+
+    fn run_parser(builtin: bool) {
+        let now = Instant::now();
+        match builtin {
+            true =>  for _i in 0..100000 {
+                  u32::from_str_radix("A1E8", 16).unwrap();
+                },
+            false =>  for _i in 0..100000 {
+                    hex_str_to_u32("A1E8").unwrap();
+            },
+        }
+        let m = if builtin {"builtin"} else {"custom"};
+        info!("{} {:?}",m, now.elapsed());
+    }
+
+    #[test]
+    fn test_hex_str_to_u32() {
+        init_log();
+        let a = hex_str_to_u32("A1E8");
+        let a1 = u32::from_str_radix("A1E8", 16);
+        assert_eq!(a.unwrap(), a1.unwrap());
+
+        run_parser(true);
+        run_parser(false);
+        run_parser(true);
+        run_parser(false);
+
     }
 }

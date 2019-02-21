@@ -90,11 +90,8 @@ pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult 
         (Some(b1), None, None) => match b1 { // exam the first byte.
             0x81...0xFE => match current_byte {
                 0x40...0x7E | 0x80...0xFE => { // a valid gb18030
-                    let mut low_boundary = 0x40;
-                    if b1 > 0x7E {
-                        low_boundary = 0x41;
-                    }
-                    let index: u32 = ((b1 - 0x81) as u32) * 190 + ((current_byte - low_boundary) as u32);
+                    let low_boundary = if b1 > 0x7E {0x41} else {0x40};
+                    let index = u32::from(b1 - 0x81) * 190 + u32::from(current_byte - low_boundary);
                     let cp = GBK_UNI[index as usize];
                     debug!("got index: {}, codepoint: 0x{:X}", index, cp);
                     state.0 = None;
