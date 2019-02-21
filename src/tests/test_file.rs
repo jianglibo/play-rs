@@ -105,7 +105,7 @@ mod tests {
     use super::*;
     use crate::tests::tutil::{get_fixture_file, get_out_file,get_src_file, init_log};
     use std::fs::{File, OpenOptions};
-    use std::io::LineWriter;
+    use std::io::{LineWriter, Read};
 
     #[test]
     fn test_cfile() -> std::io::Result<()> {
@@ -159,7 +159,10 @@ mod tests {
         let postfix = "];";
 
         let fr = get_fixture_file(["gbkuni.txt"], true);
-        let reader = BufReader::new(File::open(fr.unwrap()).unwrap());
+        let f = File::open(fr.unwrap()).unwrap();
+        
+        // f.bytes().for_each(|x|x);
+        let reader = BufReader::new(f);
 
         let wf = get_src_file(["table.rs"]).unwrap();
 

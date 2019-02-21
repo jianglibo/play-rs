@@ -37,10 +37,10 @@ pub fn gb18030_4b_to_code_point<T: AsRef<[u8]>>(gb4: T) -> Option<u32> {
         4 => {
             let (b1, b2, b3, b4) = (gb4_1[0],gb4_1[1],gb4_1[2],gb4_1[3]);
             Some(0x10000
-                + ((b1-0x90) as u32) * 12600
-                + ((b2-0x30) as u32) * 1260
-                + ((b3-0x81) as u32) * 10
-                + ((b4-0x30) as u32)
+                + u32::from(b1-0x90) * 12600
+                + u32::from(b2-0x30) * 1260
+                + u32::from(b3-0x81) * 10
+                + u32::from(b4-0x30)
             )},
         _ => None
     }
@@ -80,7 +80,7 @@ type CharResult = Result<char, MayBeMatchError>;
 pub fn try_get_char(state: &mut TripleOptionU8, current_byte: u8) -> CharResult {
     match *state { // we didn't move or copy it.
         (None, None, None) => match current_byte {
-            0x00...0x7F => Ok(char::from_u32(current_byte as u32).unwrap()), // state keep empty.
+            0x00...0x7F => Ok(char::from_u32(u32::from(current_byte)).unwrap()), // state keep empty.
             0x80 => Ok(char::from_u32(0x20AC).unwrap()), // state keep empty.
             _ => {
                 state.0 = Some(current_byte);
@@ -151,7 +151,7 @@ mod tests {
         // CED2:6211 , index 14776.
         // let index: u32 = ((b1 - 0x81) as u32) * 191 + ((current_byte - low_boundary) as u32);
         // 总共126个区。每个区的长度 0xFE-0x40 190,不是191，中间没有7F。
-        let index = ((0xCE - 0x81) as u32) * 190 + ((0xD2 - 0x41) as u32);
+        let index = u32::from(0xCEu8 - 0x81u8) * 190 + u32::from(0xD2u8 - 0x41u8);
         assert_eq!(index, 14775);
 
         // 816A:4E6F, index: 43

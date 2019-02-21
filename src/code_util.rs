@@ -3,7 +3,7 @@ const FOUR_1_POST_U32: u32 = 0b0000_1111;
 const FIVE_1_POST_U32: u32 = 0b0001_1111;
 const SIX_1_POST_U32: u32 = 0b0011_1111;
 
-const ONE_1_PRE_U8: u8 = 0b10_000000;
+const ONE_1_PRE_U8: u8 = 0b1000_0000;
 const TWO_1_PRE_U8: u8 = 0b110_00000;
 const THREE_1_PRE_U8: u8 = 0b1110_0000;
 const FOUR_1_PRE_U8: u8 = 0b1111_0000;
@@ -32,9 +32,9 @@ pub fn utf8_to_codepoint<T: AsRef<[u8]>>(utf8_as: T) -> Option<u32> {
                 let n2 = utf8[1] & SIX_1_POST_U8;
                 let n1 = utf8[0] & THREE_1_POST_U8;
 
-                let n4v = (n4 | (n3 << 6)) as u32;
-                let n3v = (((n3 >> 2) | (n2 << 4)) as u32) << 8;
-                let n2v = (((n2 >> 4) | (n1 << 2)) as u32) << 16;
+                let n4v = u32::from(n4 | (n3 << 6));
+                let n3v = u32::from((n3 >> 2) | (n2 << 4)) << 8;
+                let n2v = u32::from((n2 >> 4) | (n1 << 2)) << 16;
                 Some(n4v + n3v + n2v)
             } else if (n0 >> 4) == 0b1110 && l == 3 {
                 // 1110xxxx 10xxxx'xx 10xxxxxx
@@ -42,19 +42,19 @@ pub fn utf8_to_codepoint<T: AsRef<[u8]>>(utf8_as: T) -> Option<u32> {
                 let n2 = utf8[1] & SIX_1_POST_U8;
                 let n1 = utf8[0] & FOUR_1_POST_U8;
 
-                let n3v = (n3 | (n2 << 6)) as u32;
-                let n2v = (((n2 >> 2) | (n1 << 4)) as u32) << 8;
+                let n3v = u32::from(n3 | (n2 << 6));
+                let n2v = u32::from((n2 >> 2) | (n1 << 4)) << 8;
                 Some(n3v + n2v)
             } else if (n0 >> 5) == 0b110 && l == 2 {
                 // 110xxx'xx 10xxxxxx
                 let n2 = utf8[1] & SIX_1_POST_U8;
                 let n1 = utf8[0] & FIVE_1_POST_U8;
 
-                let n2v = (n2 | n1 << 6) as u32;
-                let n1v = ((n1 >> 2) as u32) << 8;
+                let n2v = u32::from(n2 | (n1 << 6));
+                let n1v = u32::from(n1 >> 2) << 8;
                 Some(n2v + n1v)
             } else if (n0 >> 7) == 0b0 && l == 1 {
-                Some(n0 as u32)
+                Some(u32::from(n0))
             } else {
                 None
             }
@@ -65,22 +65,22 @@ pub fn utf8_to_codepoint<T: AsRef<[u8]>>(utf8_as: T) -> Option<u32> {
 
 pub fn codepoint_to_utf8(cp: u32) -> Option<Vec<u8>> {
     match cp {
-        0x00000000...0x0000007F => Some(vec![cp as u8]),
+        0x0000_0000...0x0000_007F => Some(vec![cp as u8]),
         // 110xxxxx 10xxxxxx
-        0x00000080...0x000007FF => {
+        0x0000_0080...0x0000_07FF => {
             let u2 = get_bits(cp, BitNum::SIX);
             let u1 = get_bits(cp >> 6, BitNum::FIVE);
             Some(vec![u1, u2])
         }
         // 1110xxxx 10xxxxxx 10xxxxxx
-        0x00000800...0x0000FFFF => {
+        0x0000_0800...0x0000_FFFF => {
             let u3 = get_bits(cp, BitNum::SIX);
             let u2 = get_bits(cp >> 6, BitNum::SIX);
             let u1 = get_bits(cp >> 12, BitNum::FOUR);
             Some(vec![u1, u2, u3])
         }
         // 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        0x00010000...0x010FFFF => {
+        0x0001_0000...0x010_FFFF => {
             let u4 = get_bits(cp, BitNum::SIX);
             let u3 = get_bits(cp >> 6, BitNum::SIX);
             let u2 = get_bits(cp >> 12, BitNum::SIX);
@@ -110,8 +110,10 @@ pub fn hex_str_to_u32<T: AsRef<[u8]>>(hex_as: T) -> Option<u32> {
                 aton_1(hex[2]),
                 aton_1(hex[3]),
             ] {
-                let v: u32 =
-                    ((a as u32) << 12) + ((b as u32) << 8) + ((c as u32) << 4) + (d as u32);
+                let v: u32 = (u32::from(a) << 12) 
+                    + (u32::from(b) << 8) 
+                    + (u32::from(c) << 4) 
+                    + u32::from(d);
                 Some(v)
             } else {
                 None
