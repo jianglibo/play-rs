@@ -3,6 +3,8 @@ name = "play-rs"
 version = "0.1.0"
 authors = ["libo <jianglibo@gmail.com>"]
 edition = "2018"
+# build = "build.rs"
+build = false
 
 [dependencies]
 log = "0.4"
@@ -10,3 +12,10 @@ env_logger = "0.6.0"
 lazy_static = "1.2.0"
 chrono = "0.4"
 tokio = "0.1.15"
+# termion = "*"
+# cursive = "*"
+# yaml-rust = "0.4"
+clap = {version = "2.32", features = ["yaml"]}
+
+[build-dependencies]
+clap = {version = "2.32", features = ["yaml"]}

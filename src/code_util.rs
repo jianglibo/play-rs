@@ -123,6 +123,29 @@ pub fn hex_str_to_u32<T: AsRef<[u8]>>(hex_as: T) -> Option<u32> {
     }
 }
 
+pub fn hex_str_to_u32_v1(hex_str: &str) -> Option<u32> {
+    let hex = hex_str.as_bytes();
+    match hex.len() {
+        4 => {
+            if let [Some(a), Some(b), Some(c), Some(d)] = [
+                aton_1_v1(&hex[0]),
+                aton_1_v1(&hex[1]),
+                aton_1_v1(&hex[2]),
+                aton_1_v1(&hex[3]),
+            ] {
+                let v: u32 = (u32::from(a) << 12) 
+                    + (u32::from(b) << 8) 
+                    + (u32::from(c) << 4) 
+                    + u32::from(d);
+                Some(v)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 type TripleOptionU8 = (Option<u8>, Option<u8>, Option<u8>);
 
 #[derive(Debug)]
@@ -138,6 +161,16 @@ const BSL: u8 = b'\\';
 const XC: u8 = b'x';
 
 pub fn aton_1(b: u8) -> Option<u8> {
+    match b {
+        b'0'...b'9' => Some(b - b'0'),
+        b'a'...b'f' => Some(b - b'a' + 10),
+        b'A'...b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+
+pub fn aton_1_v1(b: &u8) -> Option<u8> {
     match b {
         b'0'...b'9' => Some(b - b'0'),
         b'a'...b'f' => Some(b - b'a' + 10),
@@ -273,18 +306,21 @@ mod tests {
         assert_eq!(get_hex_pairs(v_slice).len(), 5);
     }
 
-    fn run_parser(builtin: bool) {
+    fn run_parser(wi: u8) {
         let now = Instant::now();
-        match builtin {
-            true =>  for _i in 0..100000 {
+        match wi {
+            0 =>  for _i in 0..100000 {
                   u32::from_str_radix("A1E8", 16).unwrap();
                 },
-            false =>  for _i in 0..100000 {
+            1 =>  for _i in 0..100000 {
                     hex_str_to_u32("A1E8").unwrap();
             },
+            2 =>  for _i in 0..100000 {
+                    hex_str_to_u32_v1("A1E8").unwrap();
+            },
+            _ => (),
         }
-        let m = if builtin {"builtin"} else {"custom"};
-        info!("{} {:?}",m, now.elapsed());
+        info!("{} {:?}", wi, now.elapsed());
     }
 
     #[test]
@@ -294,10 +330,12 @@ mod tests {
         let a1 = u32::from_str_radix("A1E8", 16);
         assert_eq!(a.unwrap(), a1.unwrap());
 
-        run_parser(true);
-        run_parser(false);
-        run_parser(true);
-        run_parser(false);
+        run_parser(0);
+        run_parser(1);
+        run_parser(2);
+        run_parser(0);
+        run_parser(1);
+        run_parser(2);
 
     }
 }

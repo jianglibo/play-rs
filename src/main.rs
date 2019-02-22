@@ -4,11 +4,17 @@ extern crate lazy_static;
 extern crate log;
 extern crate env_logger;
 
+#[macro_use]
+extern crate clap;
+
+use clap::{App, SubCommand, Shell};
+
 mod tests;
 // use log::Level;
 mod code_util;
 mod gb18030;
 mod table;
+// mod cli;
 
 // #![deny(deprecated)]
 extern crate tokio;
@@ -20,43 +26,6 @@ use std::env;
 use std::net::SocketAddr;
 
 const PORT: &str = "127.0.0.1:6142";
-
-fn hello_world() -> Result<(), Box<std::error::Error>> {
-    let addr = PORT.parse()?;
-
-    // Open a TCP stream to the socket address.
-    //
-    // Note that this is the Tokio TcpStream, which is fully async.
-    let client = TcpStream::connect(&addr).and_then(|stream| {
-        println!("created stream");
-        io::write_all(stream, "hello world\n").then(|result| {
-            println!("wrote to stream; success={:?}", result.is_ok());
-            Ok(())
-        })
-    })
-    .map_err(|err| {
-        // All tasks must have an `Error` type of `()`. This forces error
-        // handling and helps avoid silencing failures.
-        //
-        // In our example, we are only going to log the error to STDOUT.
-        println!("connection error = {:?}", err);
-    });
-
-    // Start the Tokio runtime.
-    //
-    // The Tokio is a pre-configured "out of the box" runtime for building
-    // asynchronous applications. It includes both a reactor and a task
-    // scheduler. This means applications are multithreaded by default.
-    //
-    // This function blocks until the runtime reaches an idle state. Idle is
-    // defined as all spawned tasks have completed and all I/O resources (TCP
-    // sockets in our case) have been dropped.
-    println!("About to create the stream and write to it...");
-    tokio::run(client);
-    println!("Stream has been created and written to.");
-
-    Ok(())
-}
 
 fn echo() -> Result<(), Box<std::error::Error>> {
     // Allow passing an address to listen on as the first argument of this
@@ -143,23 +112,80 @@ fn echo() -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
+// #[cfg(feature = "yaml")]
 fn main() {
     ::std::env::set_var("RUST_LOG", "play_rs=debug");
     env_logger::init();
-    println!("Hello, world!");
 
-    let op = env::args().nth(1);
-    match &op {
-        Some(a) if a == "s" => {
-            info!("got parameter: {}", a);
-            echo().unwrap();
+    use clap::App;
+
+    // To load a yaml file containing our CLI definition such as the example '17_yaml.yml' we can
+    // use the convenience macro which loads the file at compile relative to the current file
+    // similar to how modules are found.
+    //
+    // Then we pass that yaml object to App to build the CLI.
+    //
+    // Finally we call get_matches() to start the parsing process. We use the matches just as we
+    // normally would
+    // let yml = load_yaml!(std::env::current_dir().unwrap().join("17_yaml.yml").to_str().unwrap());
+    
+    let yml = load_yaml!("17_yaml.yml");
+    let m = App::from_yaml(yml).get_matches();
+
+    match m.subcommand() {
+        ("completions", Some(sub_matches)) => {
+            let shell = sub_matches.value_of("shell");
+            // println!("shell value:{:?}", shell);
+            let shell_enum = shell.unwrap().parse::<Shell>().unwrap();
+            App::from_yaml(yml).gen_completions_to(
+                "play-rs", 
+                shell_enum, 
+                &mut std::io::stdout()
+            );
         },
-        _ => {
-            hello_world().unwrap();
-            }
-    };
+        (_, _) => unimplemented!(), // for brevity
+    }
 
+    // Because the example 17_yaml.yml is rather large we'll just look a single arg so you can
+    // see that it works...
+    if let Some(mode) = m.value_of("mode") {
+        match mode {
+            "vi" => println!("You are using vi"),
+            "emacs" => println!("You are using emacs..."),
+            _      => unreachable!()
+        }
+    } else {
+        println!("--mode <MODE> wasn't used...");
+    }
 
+    // // println!("Hello, world!");
 
+    // let op = env::args().nth(1);
+    // match &op {
+    //     Some(a) => match a.as_str() {
+    //         "tokio-server" => {
+    //           info!("got parameter: {}", a);
+    //           echo().unwrap();
+    //         },
+    //         "tokio-client" => {
+    //             hello_world().unwrap();
+    //         },
+    //         "clap" => {
+    //             info!("run clap.");
+    //         	clap();
+    //         },
+    //         _ => ()
+    //     },
+    //     _ => {
+    //         hello_world().unwrap();
+    //         }
+    // };
     // hello_world().unwrap();
 }
+
+// #[cfg(not(feature = "yaml"))]
+// fn main() {
+//     // As stated above, if clap is not compiled with the YAML feature, it is disabled.
+//     println!("YAML feature is disabled.");
+//     println!("Pass --features yaml to cargo when trying this example.");
+// }
