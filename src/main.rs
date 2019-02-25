@@ -7,6 +7,12 @@ extern crate env_logger;
 #[macro_use]
 extern crate clap;
 
+#[macro_use]
+extern crate futures;
+// #![deny(deprecated)]
+extern crate tokio;
+
+
 use clap::{App, SubCommand, Shell};
 
 mod tests;
@@ -14,10 +20,9 @@ mod tests;
 mod code_util;
 mod gb18030;
 mod table;
+mod dir_watcher_stream;
 // mod cli;
 
-// #![deny(deprecated)]
-extern crate tokio;
 
 use tokio::io;
 use tokio::prelude::*;
