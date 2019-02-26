@@ -5,16 +5,18 @@ use std::sync::mpsc::TryRecvError;
 use futures::future::lazy;
 use std::time::Duration;
 use std::path::PathBuf;
+use tokio::timer::Interval;
 
 
 pub struct DirWatcher {
     // app_state: AppState,
     rx: std::sync::mpsc::Receiver<DebouncedEvent>,
     watcher: RecommendedWatcher,
+    interval: Interval,
 }
 
 impl DirWatcher {
-    pub fn new(watch_target: &str, duration: u16, recursive_mode: RecursiveMode /*, app_state: AppState*/) -> DirWatcher {
+    pub fn new(watch_target: &str, debounce_duration: Duration, interval_duration: Duration, recursive_mode: RecursiveMode /*, app_state: AppState*/) -> DirWatcher {
         let watch_path = std::path::Path::new(watch_target);
         if !(watch_path.is_dir() && watch_path.exists()) {
             panic!("watch target {} does't exists.", watch_target);
@@ -23,8 +25,7 @@ impl DirWatcher {
 
         // Automatically select the best implementation for your platform.
         // You can also access each implementation directly e.g. INotifyWatcher.
-        let mut watcher: RecommendedWatcher = Watcher::new(tx, Duration::from_secs(u64::from(duration))).unwrap();
-        
+        let mut watcher: RecommendedWatcher = Watcher::new(tx, debounce_duration).unwrap();
 
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
@@ -35,7 +36,8 @@ impl DirWatcher {
         DirWatcher {
             // app_state,
             rx,
-            watcher: watcher
+            watcher: watcher,
+            interval: Interval::new_interval(interval_duration),
         }
     }
 }
@@ -46,13 +48,55 @@ fn encode_msg(et: u8, pb: &PathBuf) -> Option<Vec<u8>> {
     Some(v)
 }
 
+#[derive(Debug)]
+struct FileChangeEvent<'a> {
+    event_code: &'a u8,
+    file_path: Option<&'a str>,
+    after_path: Option<&'a str>,
+}
+
+fn decode_msg<'a>(vec_of_u8: &'a Vec<u8>) -> Option<FileChangeEvent<'a>> {
+    if let Some((one, rest)) = vec_of_u8.split_first() {
+        if let Some((zero, path_part)) = rest.split_first() {
+            match one {
+                7 => {
+                    let mut iter = path_part.split(|c|c == &0);
+                    if let (Some(a), Some(b)) = (iter.next(), iter.next()) {
+                        Some(FileChangeEvent {
+                            event_code: one,
+                            file_path: Some(std::str::from_utf8(a).unwrap()),
+                            after_path: Some(std::str::from_utf8(b).unwrap()),
+                        })
+                    } else {
+                        None
+                    }
+                },
+                _ =>  Some(FileChangeEvent {
+                    event_code: one,
+                    file_path: Some(std::str::from_utf8(path_part).unwrap()),
+                    after_path: None,
+                })
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 impl Stream for DirWatcher {
     type Item = Vec<u8>;
     // The stream will never yield an error
     type Error = ();
 
     fn poll(&mut self) -> Poll<Option<Vec<u8>>, ()> {
-        info!("start poll.");
+        try_ready!(
+            self.interval.poll()
+                // The interval can fail if the Tokio runtime is unavailable.
+                // In this example, the error is ignored.
+                .map_err(|_| ())
+        );
         match self.rx.try_recv() {
             Ok(de) => match de {
                 DebouncedEvent::NoticeWrite(pb) => Ok(Async::Ready(encode_msg(1, &pb))),
@@ -128,8 +172,8 @@ where
     type Error = T::Error;
 
     fn poll(&mut self) -> Poll<(), Self::Error> {
-        while self.curr < 10 {
-            info!("start poll for {}th time.", self.curr);
+        while self.curr < 100 {
+            // info!("start poll for {}th time.", self.curr);
             self.count += 1;
             let value = match try_ready!(self.stream.poll()) {
                 Some(value) => value,
@@ -138,7 +182,8 @@ where
                 None => break,
             };
             if !value.is_empty() {
-                println!("value #{} = {:?}", self.curr, value);
+                let decoded = decode_msg(&value);
+                println!("value #{} = {:?}", self.curr, decoded);
                 self.curr += 1;
             }
         }
@@ -150,7 +195,7 @@ where
     #[test]
     fn test_arbit() {
         init_log();
-        let dir_watcher = DirWatcher::new("c:\\", 2, RecursiveMode::Recursive);
+        let dir_watcher = DirWatcher::new("c:\\", Duration::from_secs(2), Duration::from_millis(10), RecursiveMode::Recursive);
         let display = Display10::new(dir_watcher);
         tokio::run(display);
     }

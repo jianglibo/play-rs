@@ -77,7 +77,14 @@ subcommands:
                 takes_value: true
                 possible_values: [bash, fish, zsh, powershell]
                 help: The shell to generate the script for
-
+    - fc-server:
+        about: Run fc server.
+        version: "0.1"
+        author: libo jiang. <jianglibo@gmail.com>
+        args:
+            - port:
+                long: port
+                takes_value: true
     - subcmd:
         about: demos subcommands from yaml
         version: "0.1"
